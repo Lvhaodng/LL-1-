@@ -1,0 +1,5 @@
+E->TA
+A->WTA|e
+T->FB
+B->QFB|e
+F->I|(E)
