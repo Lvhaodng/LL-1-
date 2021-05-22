@@ -28,6 +28,7 @@ public:
 	vector<char> select;
 };
 
+//LL（1）分析表
 class analyse_table {
 public:
 	int vt_num;
@@ -42,12 +43,20 @@ public:
 			cout << endl;
 		}
 	};
-	
-};
+};		
 
-
+//语法分析
 class parser {
 public:
+	//读入的原始信息 
+	char empty;                     //表示空的字符串的字符
+	vector<char> Vt;				
+	vector<char> Vn;				
+	int vt_num;
+	int vn_num;
+	vector<string> gramer_vec;
+
+	//初始化语法分析器  读入文法 字符集合
 	void init(string gramfilename,string Vfilename);
 	void get_gramer(string filename);
 	void getV(string filename);
@@ -104,14 +113,15 @@ public:
 	bool is_vn(char t);
 	bool is_vt(char t);
 
-	bool is_right(vector<token>& shuruchuan);
-	char empty;
-	vector<char> Vt;
-	vector<char> Vn;
-	int vt_num;
-	int vn_num;
-	vector<string> gramer_vec;
+	int get_vn_pos(char vn);
+	int get_vt_pos(char vt);
+	int get_gramer_pos(string gramerstr);
 
+	VN& get_vn(char vn);
+	VT& get_vt(char vt);
+	grammer_& get_grammer(string gramerstr);
+
+	//求first follow select 集合 
 	void canempty();
 	void is_empty(VN& det);
 	void set_first();
@@ -166,7 +176,9 @@ public:
 			}
 		}
 	}
+	//填分析表
 	void fillin_table();
+	//分析器
 	bool analyser(string w);
 	int serch_gram_pos(char vn, char vt) {
 		int vn_pos = 0;
@@ -180,7 +192,7 @@ public:
 		return table.table[vn_pos][vt_pos];
 	}
 
-
+	//保存经过分析过后的各产生式和符号的信息
 	vector<VN> vninfo;
 	vector<VT> vtinfo;
 	vector<grammer_> grammerinfo;
@@ -202,6 +214,68 @@ void analyse_table::analyse_table_init(int vtnum, int vnnum) {
 	}
 };
 
+int parser::get_vn_pos(char vn) {
+	int i = 0;
+	for (auto iter = Vn.begin(); iter != Vn.end(); iter++) {
+		if (*iter == vn)
+			return i;
+		i++;
+	}
+}
+
+bool parser::is_vn(char t) {
+	for (auto iter = Vn.begin(); iter != Vn.end(); iter++) {
+		if (*iter == t)
+			return true;
+	}
+	return false;
+}
+bool parser::is_vt(char t) {
+	for (auto iter = Vt.begin(); iter != Vt.end(); iter++) {
+		if (*iter == t)
+			return true;
+	}
+	return false;
+}
+
+int parser::get_vt_pos(char vt) {
+	int i = 0;
+	for (auto iter = Vt.begin(); iter != Vt.end(); iter++) {
+		if (*iter == vt)
+			return i;
+		i++;
+	}
+	return i;
+}
+int parser::get_gramer_pos(string gramerstr) {
+	int i = 0;
+	for (auto iter = gramer_vec.begin(); iter != gramer_vec.end(); iter++) {
+		if (*iter == gramerstr)
+			return i;
+		i++;
+	}
+}
+
+VN& parser::get_vn(char vn) {
+	for (auto iter = vninfo.begin(); iter != vninfo.end(); iter++) {
+		if (iter->vn == vn)
+			return *iter;
+	}
+}
+VT& parser::get_vt(char vt) {
+	for (auto iter = vtinfo.begin(); iter != vtinfo.end(); iter++) {
+		if (iter->vt == vt)
+			return *iter;
+	}
+}
+grammer_& parser::get_grammer(string gramerstr) {
+	for (auto iter = grammerinfo.begin(); iter != grammerinfo.end(); iter++) {
+		if (iter->grammer == gramerstr)
+			return *iter;
+	}
+}
+
+
 void parser::init(string gramfilename,string Vfilename) {
 	get_gramer(gramfilename);
 	getV(Vfilename);
@@ -214,7 +288,6 @@ void parser::init(string gramfilename,string Vfilename) {
 	table.analyse_table_init(vt_num, vn_num);
 	fillin_table();
 }
-
 void parser::get_gramer(string filename) {
 	ifstream gramer;
 	string now;
@@ -244,7 +317,6 @@ void parser::get_gramer(string filename) {
 	}
 	return;
 }
-
 void parser::getV(string filename) {
 	ifstream Vfile;
 	Vfile.open(filename);
@@ -272,39 +344,15 @@ void parser::getV(string filename) {
 }
 
 
-bool parser::is_vn(char t) {
-	for (auto iter = Vn.begin(); iter != Vn.end(); iter++) {
-		if (*iter == t)
-			return true;
-	}
-	return false;
-}
-
-bool parser::is_vt(char t) {
-	for (auto iter = Vt.begin(); iter != Vt.end(); iter++) {
-		if (*iter == t)
-			return true;
-	}
-	return false;
-}
-
 void parser::set_first() {
-
 	for (auto i = vtinfo.begin(); i != vtinfo.end(); i++) {
-			(i->first).push_back(i->vt);
+		(i->first).push_back(i->vt);
 	}
 
 	for (auto p = vninfo.begin(); p != vninfo.end(); p++) {
-		for (auto iter_gr = gramer_vec.begin(); iter_gr != gramer_vec.end(); iter_gr++) {
-			if ((*iter_gr)[0] == p->vn) {
-				string right = "";
-				right = (*iter_gr).substr(1, (*iter_gr).length() - 1);
-				p->first.push_back(get_first(right, *p));
-			}
-		}
+		qiufirst(*p);
 	}
 }
-
 void parser::qiufirst(VN& wait) {
 	for (auto iter_gr = gramer_vec.begin(); iter_gr != gramer_vec.end(); iter_gr++) {
 		if ((*iter_gr)[0] == wait.vn) {
@@ -313,38 +361,28 @@ void parser::qiufirst(VN& wait) {
 			wait.first.push_back(get_first(right, wait));
 		}
 	}
-
 }
-
 char parser::get_first(string w, VN& det) {
 	for (int i = 0; i < w.length(); i++) {
 		if (is_vt(w[i])) {
+			cout << w[i];
 			return w[i];
 		}
 		else if (is_vn(w[i])) {
-			for (auto iter = vninfo.begin(); iter != vninfo.end(); iter++) {
-				if (iter->vn == w[i]) {
-					auto p = iter->first;
-					if (p.empty()) {
-						qiufirst(*iter);
-						iter--;
-					}
-					else {
-						if (iter->empty) {
-							for (auto i = p.begin(); i != p.end(); i++) {
-								det.first.push_back(*i);
-							}
-							break;
-						}
-						else {
-							for (auto i = p.begin(); i != p.end(); i++) {
-								det.first.push_back(*i);
-							}
-							det.first.pop_back();
-							return *(p.end() - 1);
-						}
-					}
-				}
+			VN& left_vn = get_vn(w[i]);
+			auto firstjihe_iter = left_vn.first;
+			if (firstjihe_iter.empty()) {
+				qiufirst(left_vn);
+				firstjihe_iter = left_vn.first;
+			}
+			if (left_vn.empty) {
+				det.first.insert(det.first.end(), firstjihe_iter.begin(),firstjihe_iter.end());
+				break;
+			}
+			else {
+				det.first.insert(det.first.end(), firstjihe_iter.begin(), firstjihe_iter.end());
+				det.first.pop_back();
+				return *(firstjihe_iter.end() - 1);
 			}
 		}
 		else {
@@ -358,29 +396,16 @@ char parser::get_first(string w, grammer_& det) {
 			return w[i];
 		}
 		else if (is_vn(w[i])) {
-			for (auto iter = vninfo.begin(); iter != vninfo.end(); iter++) {
-				if (iter->vn == w[i]) {
-					auto p = iter->first;
-					if (p.empty()) {
-						qiufirst(*iter);
-						iter--;
-					}
-					else {
-						if (iter->empty) {
-							for (auto i = p.begin(); i != p.end(); i++) {
-								det.select.push_back(*i);
-							}
-							break;
-						}
-						else {
-							for (auto i = p.begin(); i != p.end(); i++) {
-								det.select.push_back(*i);
-							}
-							det.select.pop_back();
-							return *(p.end() - 1);
-						}
-					}
-				}
+			VN& left_vn = get_vn(w[i]);
+			auto firstjihe_iter = left_vn.first;
+			if (left_vn.empty) {
+				det.select.insert(det.select.end(), firstjihe_iter.begin(), firstjihe_iter.end());
+				break;
+			}
+			else {
+				det.select.insert(det.select.end(), firstjihe_iter.begin(), firstjihe_iter.end());
+				det.select.pop_back();
+				return *(firstjihe_iter.end() - 1);
 			}
 		}
 		else {
@@ -391,63 +416,11 @@ char parser::get_first(string w, grammer_& det) {
 
 void parser::set_follow() {
 	for (auto iter = vninfo.begin(); iter != vninfo.end(); iter++) {
-		for (auto sen = gramer_vec.begin(); sen != gramer_vec.end(); sen++) {
-			if (iter->vn == (*gramer_vec.begin())[0]) {
-				iter->follow.push_back('#');
-			}
-			string now = sen->substr(1, sen->length() - 1);
-			for (int i = 0;i < now.length(); i++) {
-				if (now[i] == iter->vn) {
-					if (i + 1 != now.length()) {
-						char next = now[i + 1];
-						if (is_vt(next)) {
-							iter->follow.push_back(next);
-						}
-						else if (is_vn(next)) {
-							string right = now.substr(i+1,now.length()-i-1);
-							if (right_empty(right)) {
-								auto left = vninfo.begin();
-								for (; left != vninfo.end() && left->vn != (*sen)[0]; left++) {}
-								if (left->follow.empty()) {
-									get_follow(*left);
-								}
-								iter->follow.insert(iter->follow.end(), left->follow.begin(), left->follow.end());
-							}
-								bool flag = true;
-								for (int j = i + 1; j < now.length()&&flag==true;j++) {
-									char ch = now[j];
-									for (auto vnp = vninfo.begin(); vnp != vninfo.end(); vnp++) {
-										if (vnp->vn == ch) {
-											if (vnp->empty) {
-												iter->follow.insert(iter->follow.end(), vnp->first.begin(), vnp->first.end());
-											}
-											else {
-												iter->follow.insert(iter->follow.end(), vnp->first.begin(), vnp->first.end());
-												flag = false;
-											}
-											break;
-										}
-									}
-								}
-						}
-					}
-					if (i +1== now.length()) {
-						for (auto left = vninfo.begin(); left != vninfo.end(); left++) {
-							if (left->vn == (*sen)[0]) {
-								if(!left->follow.empty())
-								iter->follow.insert(iter->follow.end(), left->follow.begin(), left->follow.end());
-								else {
-									get_follow(*left);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
+		if (iter->vn == (*gramer_vec.begin())[0])
+			iter->follow.push_back('#');
+		get_follow(*iter);
 	}
 }
-
 void parser::get_follow(VN& det) {
 	for (auto sen = gramer_vec.begin(); sen != gramer_vec.end(); sen++) {
 		string now = sen->substr(1, sen->length() - 1);
@@ -461,42 +434,19 @@ void parser::get_follow(VN& det) {
 					else if (is_vn(next)) {
 						string right = now.substr(i + 1, now.length() - i - 1);
 						if (right_empty(right)) {
-							auto left = vninfo.begin();
-							for (; left != vninfo.end() && left->vn != (*sen)[0]; left++) {}
-							if (left->follow.empty()) {
-								get_follow(*left);
-							}
-							det.follow.insert(det.follow.end(), left->follow.begin(), left->follow.end());
+							VN& left_vn=get_vn((*sen)[0]);
+							det.follow.insert(det.follow.end(), left_vn.follow.begin(), left_vn.follow.end());
 						}
-							bool flag = true;
-							for (int j = i + 1; j < now.length() && flag == true; j++) {
-								char ch = now[j];
-								for (auto vnp = vninfo.begin(); vnp != vninfo.end(); vnp++) {
-									if (vnp->vn == ch) {
-										if (vnp->empty) {
-											det.follow.insert(det.follow.end(), vnp->first.begin(), vnp->first.end());
-										}
-										else {
-											det.follow.insert(det.follow.end(), vnp->first.begin(), vnp->first.end());
-											flag = false;
-										}
-										break;
-									}
-								}
-							}
+						for (int j = i + 1; j < now.length(); j++) {
+							VN& now_vn = get_vn(now[j]);
+							det.follow.insert(det.follow.end(), now_vn.first.begin(), now_vn.first.end());
+							if (!now_vn.empty)	break;
+						}
 					}
 				}
 				if (i + 1 == now.length()) {
-					for (auto left = vninfo.begin(); left != vninfo.end(); left++) {
-						if (left->vn == (*sen)[0]) {
-							if (!left->follow.empty())
-								det.follow.insert(det.follow.end(), left->follow.begin(), left->follow.end());
-							else {
-								get_follow(*left);
-								det.follow.insert(det.follow.end(), left->follow.begin(), left->follow.end());
-							}
-						}
-					}
+					VN& left = get_vn((*sen)[0]);
+					det.follow.insert(det.follow.end(), left.follow.begin(), left.follow.end());
 				}
 			}
 		}
@@ -505,7 +455,7 @@ void parser::get_follow(VN& det) {
 
 void parser::get_select() {
 	for (auto iter = gramer_vec.begin(); iter != gramer_vec.end(); iter++) {						//第一遍扫描确定表达式右部是否能推空
-		grammer_ now;
+		grammer_ now;  
 		now.grammer = *iter;
 		string right=iter->substr(1,iter->length()-1);
 		now.empty = right_empty(right);
@@ -516,18 +466,14 @@ void parser::get_select() {
 		string right = now.substr(1, now.length() - 1);
 		if (iter->empty) {
 			iter->select.push_back(get_first(right, *iter));
-			for (auto left = vninfo.begin(); left != vninfo.end(); left++) {
-				if (left->vn == now[0]) {
-					iter->select.insert(iter->select.end(), left->follow.begin(), left->follow.end());
-					break;
-				}
-			}
+			VN& left = get_vn(now[0]);
+			iter->select.insert(iter->select.end(), left.follow.begin(), left.follow.end());
 		}
 		else {
 			iter->select.push_back(get_first(right, *iter));
 		}
 	}
-	for (auto iter = grammerinfo.begin(); iter != grammerinfo.end(); iter++) {						
+	for (auto iter = grammerinfo.begin(); iter != grammerinfo.end(); iter++) {						//清洗空符号
 		for (auto i = iter->select.begin(); i != iter->select.end(); i++) {
 			if (*i == empty) {
 				i = iter->select.erase(i);
@@ -539,34 +485,30 @@ void parser::get_select() {
 void parser::canempty() {
 	for (auto iter = vninfo.begin(); iter != vninfo.end(); iter++) {
 		for (auto sen = gramer_vec.begin(); sen != gramer_vec.end() ; sen++) {
-			bool flag = true;
 			if ((*sen)[0] == iter->vn) {
 				string right = sen->substr(1, sen->length() - 1);
-				for (int i = 0; i < right.length() && flag == true; i++) {
+				for (int i = 0; i < right.length(); i++) {
 					if (right.length() == 1 && right[i] == empty &&iter->setable) {
 						iter->empty = 1;
-						flag = false;
+						break;
 					}
 					else if (is_vt(right[i]) && iter->setable) {
 						iter->empty = 0;
-						flag = false;
+						break;
 					}
 					else if (is_vn(right[i]) && iter->setable) {
-						for (auto ch = vninfo.begin(); ch != vninfo.end(); ch++) {
-							if (ch->vn == right[i]) {
-								if (ch->empty == -1) {
-									is_empty(*ch);
-								}
-								if (ch->empty == 0) {
-									iter->empty = 0;
-									flag = false;
-								}
-								else if (ch->empty == 1 && i == right.length() - 1) {
-									iter->empty = 1;
-									flag = false;
-									iter->setable = false;
-								}
-							}
+						VN& ch = get_vn(right[i]);
+						if (ch.empty == -1) {
+							is_empty(ch);
+						}
+						else if (ch.empty == 0) {
+							iter->empty = 0;
+							break;
+						}
+						else if (ch.empty == 1 && i == right.length() - 1) {
+							iter->empty = 1;
+							iter->setable = false;
+							break;
 						}
 					}
 				}
@@ -574,58 +516,47 @@ void parser::canempty() {
 		}
 	}
 }
-
 void parser::is_empty(VN& det) {
 	for (auto sen = gramer_vec.begin(); sen != gramer_vec.end(); sen++) {
-		bool flag = true;
 		if ((*sen)[0] == det.vn) {
 			string right = sen->substr(1, sen->length() - 1);
-			for (int i = 0; i < right.length() && flag == true; i++) {
+			for (int i = 0; i < right.length(); i++) {
 				if (right.length() == 1 && right[i] == empty && det.setable) {
 					det.empty = 1;
-					flag = false;
+					break;
 				}
 				else if (is_vt(right[i]) && det.setable) {
 					det.empty = 0;
-					flag = false;
+					break;
 				}
 				else if (is_vn(right[i]) && det.setable) {
-					for (auto ch = vninfo.begin(); ch != vninfo.end(); ch++) {
-						if (ch->vn == right[i]) {
-							if (ch->empty == -1) {
-								is_empty(*ch);
-							}
-							if (ch->empty == 0) {
-								det.empty = 0;
-								flag = false;
-							}
-							else if (ch->empty == 1 && i == right.length() - 1) {
-								det.empty = 1;
-								flag = false;
-								det.setable = false;
-							}
-						}
+					VN& ch = get_vn(right[i]);
+					if (ch.empty == -1) {
+						is_empty(ch);
+					}
+					if (ch.empty == 0) {
+						det.empty = 0;
+						break;
+					}
+					else if (ch.empty == 1 && i == right.length() - 1) {
+						det.empty = 1;
+						det.setable = false;
+						break;
 					}
 				}
 			}
 		}
-		flag = true;
 	}
 }
-
 bool parser::right_empty(string w) {
 	for (int i = 0; i < w.length(); i++) {
 		if (is_vt(w[i])) {
 			return false;
 		}
 		else if (is_vn(w[i])) {
-			for (auto iter = vninfo.begin(); iter != vninfo.end(); iter++) {
-				if (iter->vn == w[i]) {
-					if (iter->empty == 0) {
-						return false;
-					}
-					break;
-				}
+			VN& iter = get_vn(w[i]);
+			if (iter.empty == 0) {
+				return false;
 			}
 		}
 		return true;
@@ -641,19 +572,10 @@ void parser::fillin_table() {
 		int vt_pos = 0;
 		for (auto p = select.begin(); p != select.end(); p++) {
 			char left = (iter->grammer)[0];
-			auto l = vninfo.begin();
-			for (; l != vninfo.end() && l->vn != left; l++) {
-				vn_pos++;
-			}
 			char t = *p;
-			auto zhongjiefu = vtinfo.begin();
-			for (; zhongjiefu != vtinfo.end() && zhongjiefu->vt != t; zhongjiefu++) {
-				vt_pos++;
-			}
-			//todo  cout << vn_pos << endl<<vt_pos<<endl<<gram_pos<<endl<<endl;
+			vn_pos = get_vn_pos(left);
+			vt_pos = get_vt_pos(t);
 			table.table[vn_pos][vt_pos] = gram_pos;
-			vn_pos = 0;
-			vt_pos = 0;
 		}
 	}
 }
@@ -693,12 +615,6 @@ bool parser::analyser(string w) {
 	{
 		bool flag = false;
 		while (!flag) {
-			
-			//for(auto iter=fenxizhan.)
-
-
-
-
 			char stk_top = fenxizhan.top();
 			fenxizhan.pop();
 			cout << i << stk_top << A[i]<<endl;
@@ -710,7 +626,6 @@ bool parser::analyser(string w) {
 			}
 			else if (is_vn(stk_top)) {
 				int gramer_pos = serch_gram_pos(stk_top, A[i]);
-				//cout << gramer_pos;
 				if (gramer_pos == -1) {
 					return false;
 				}
@@ -721,7 +636,6 @@ bool parser::analyser(string w) {
 					}
 					string back = iter->grammer;
 					back=back.substr(1, back.length() - 1);
-					//cout << back;
 					reverse(back.begin(), back.end());
 					cout << back<<endl;
 					for (int j = 0; j < back.length(); j++) {
@@ -738,13 +652,11 @@ bool parser::analyser(string w) {
 	return true;
 };
 
-
-
 int main()
 {
 	parser P;
 	P.init("grammer.txt","fuhao.txt");
-	string w = "x+y*(3*a+7-b/5";
+	string w = "x+y*(3*a+7-b/5)";
 	cout<<P.analyser(w);
 	return 0;
 }
