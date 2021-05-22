@@ -60,7 +60,8 @@ public:
 	void init(string gramfilename,string Vfilename);
 	void get_gramer(string filename);
 	void getV(string filename);
-	
+	void yushe();
+
 	void show_gramer()const {
 		int i = 0;
 		for (auto iter = gramer_vec.begin(); iter != gramer_vec.end(); iter++) {
@@ -119,7 +120,6 @@ public:
 
 	VN& get_vn(char vn);
 	VT& get_vt(char vt);
-	grammer_& get_grammer(string gramerstr);
 
 	//求first follow select 集合 
 	void canempty();
@@ -268,17 +268,58 @@ VT& parser::get_vt(char vt) {
 			return *iter;
 	}
 }
-grammer_& parser::get_grammer(string gramerstr) {
-	for (auto iter = grammerinfo.begin(); iter != grammerinfo.end(); iter++) {
-		if (iter->grammer == gramerstr)
-			return *iter;
+
+void parser::yushe() {
+	string a[5] = { "E->TA" , "A->WTA|e","T->FB" ,"B->QFB|e" ,"F->I|(E)" };
+	for (int i = 0; i < 5;i++) {
+		string now = a[i];
+		char left = now[0];
+		string right = now.substr(3, now.length() - 3);
+		string youxiao = "";
+		for (int i = 0; i < right.length(); i++) {
+			char nowch = right[i];
+			if (nowch != '|') {
+				youxiao.append(1, nowch);
+			}
+			else {
+				string gram = "";
+				gram.append(1, left);
+				gram = gram + youxiao;
+				youxiao = "";
+				gramer_vec.push_back(gram);
+			}
+		}
+		string gram = "";
+		gram.append(1, left);
+		gram = gram + youxiao;
+		youxiao = "";
+		gramer_vec.push_back(gram);
+	}
+	string vn = "EATBF";
+	string vt = "IWQ()";
+	empty = 'e';
+	vt_num = 0;
+	vn_num = 0;
+	for (int i = 0; i < vn.length(); i++) {
+		Vn.push_back(vn[i]);
+		VN p;
+		p.vn = vn[i];
+		vninfo.push_back(p);
+		vn_num++;
+	}
+	for (int j = 0; j < vt.length();j++) {
+		Vt.push_back(vt[j]);
+		VT p;
+		p.vt = vt[j];
+		vtinfo.push_back(p);
+		vt_num++;
 	}
 }
 
-
 void parser::init(string gramfilename,string Vfilename) {
-	get_gramer(gramfilename);
-	getV(Vfilename);
+	//get_gramer(gramfilename);
+	//getV(Vfilename);
+	yushe();
 	canempty();
 	set_first();
 	cleanfirst();
@@ -365,7 +406,7 @@ void parser::qiufirst(VN& wait) {
 char parser::get_first(string w, VN& det) {
 	for (int i = 0; i < w.length(); i++) {
 		if (is_vt(w[i])) {
-			cout << w[i];
+			//cout << w[i];
 			return w[i];
 		}
 		else if (is_vn(w[i])) {
@@ -617,7 +658,7 @@ bool parser::analyser(string w) {
 		while (!flag) {
 			char stk_top = fenxizhan.top();
 			fenxizhan.pop();
-			cout << i << stk_top << A[i]<<endl;
+			//cout << i << stk_top << A[i]<<endl;
 			if (is_vt(stk_top)) {
 				if (stk_top == A[i])
 					flag = true;
@@ -637,7 +678,7 @@ bool parser::analyser(string w) {
 					string back = iter->grammer;
 					back=back.substr(1, back.length() - 1);
 					reverse(back.begin(), back.end());
-					cout << back<<endl;
+					//cout << back<<endl;
 					for (int j = 0; j < back.length(); j++) {
 						if(back[j]!=empty)
 						fenxizhan.push(back[j]);
@@ -656,7 +697,13 @@ int main()
 {
 	parser P;
 	P.init("grammer.txt","fuhao.txt");
-	string w = "x+y*(3*a+7-b/5)";
-	cout<<P.analyser(w);
+	string w;
+	while (getline(cin, w)) {
+		if (P.analyser(w))
+			cout << "正确";
+		else
+			cout << "错误";
+		w = "";
+	}
 	return 0;
 }
